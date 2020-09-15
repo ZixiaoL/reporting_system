@@ -1,0 +1,19 @@
+{
+  "description":"Student Math Course Report",
+  "headers":["Student #","Name","Class","Score"],
+  "data":[
+    ["s-001", "James", "Class-A", "A+"],
+    ["s-002","Robert","Class-A","A"],
+    ["s-003","Jennifer","Class-A","A"],
+    ["s-004","Linda","Class-B","B"],
+    ["s-005","Elizabeth","Class-B","B+"],
+    ["s-006","Susan","Class-C","A"],
+    ["s-007","Jessica","Class-C","A+"],
+    ["s-008","Sarah","Class-A","B"],
+    ["s-009","Thomas","Class-A","B-"],
+    ["s-010","Joseph","Class-B","A-"],
+    ["s-011","Charles","Class-C","A"],
+    ["s-012","Lisa","Class-D","B"]
+  ],
+  "submitter":"Mrs. York"
+}
