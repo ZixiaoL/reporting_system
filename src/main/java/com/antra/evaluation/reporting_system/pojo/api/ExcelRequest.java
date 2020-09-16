@@ -5,6 +5,15 @@ import java.util.List;
 public class ExcelRequest {
     private List<String> headers;
     private String description;
+    private List<List<String>> data;
+
+    public List<List<String>> getData() {
+        return data;
+    }
+
+    public void setData(List<List<String>> data) {
+        this.data = data;
+    }
 
     public String getDescription() {
         return description;
