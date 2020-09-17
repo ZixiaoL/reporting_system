@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 public class ExcelGenerationController {
@@ -27,7 +28,6 @@ public class ExcelGenerationController {
     private static final Logger log = LoggerFactory.getLogger(ExcelGenerationController.class);
 
     ExcelService excelService;
-
     @Autowired
     public ExcelGenerationController(ExcelService excelService) {
         this.excelService = excelService;
@@ -44,16 +44,22 @@ public class ExcelGenerationController {
 
     @PostMapping("/excel/auto")
     @ApiOperation("Generate Multi-Sheet Excel Using Split field")
-    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated MultiSheetExcelRequest request) {
+    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated MultiSheetExcelRequest request) throws IOException {
+        ExcelFile excelFile = excelService.saveMultiSheetRequest(request);
         ExcelResponse response = new ExcelResponse();
-
+        response.setFileId(excelFile.getId());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/excel")
     @ApiOperation("List all existing files")
     public ResponseEntity<List<ExcelResponse>> listExcels() {
+        List<ExcelFile> excelResponses = excelService.getAllFiles();
+
         var response = new ArrayList<ExcelResponse>();
+        response = excelResponses.stream().map(x ->
+            {ExcelResponse curResponse = new ExcelResponse();curResponse.setFileId(x.getId());return curResponse;})
+            .collect(Collectors.toCollection(ArrayList::new));
 
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
@@ -62,13 +68,15 @@ public class ExcelGenerationController {
     public void downloadExcel(@PathVariable String id, HttpServletResponse response) throws IOException {
         InputStream fis = excelService.getExcelBodyById(id);
         response.setHeader("Content-Type","application/vnd.ms-excel");
-        response.setHeader("Content-Disposition","attachment; filename="+ id + "xlsx"); // TODO: File name cannot be hardcoded here
+        response.setHeader("Content-Disposition","attachment; filename=\""+ id + ".xlsx\""); // TODO: File name cannot be hardcoded here
         FileCopyUtils.copy(fis, response.getOutputStream());
     }
 
     @DeleteMapping("/excel/{id}")
     public ResponseEntity<ExcelResponse> deleteExcel(@PathVariable String id) {
+        excelService.deleteRequest(id);
         var response = new ExcelResponse();
+        response.setFileId(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

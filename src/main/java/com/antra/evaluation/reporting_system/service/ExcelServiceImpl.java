@@ -1,6 +1,7 @@
 package com.antra.evaluation.reporting_system.service;
 
 import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
+import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelData;
 import com.antra.evaluation.reporting_system.repo.ExcelRepository;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelFile;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,6 +25,16 @@ public class ExcelServiceImpl implements ExcelService {
 
     @Autowired
     ExcelGenerationService excelGenerationService;
+
+    @Override
+    public ExcelFile saveMultiSheetRequest(MultiSheetExcelRequest request) throws IOException {
+        int curId = id.incrementAndGet();
+        ExcelData excelData = RequestDataConverter.convertMultiSheetRequestToData(request, curId);
+        ExcelFile excelFile = RequestFileConverter.convertRequestToFile(request, curId);
+        excelRepository.saveFile(excelFile);
+        excelGenerationService.generateExcelReport(excelData);
+        return excelFile;
+    }
 
     @Override
     public InputStream getExcelBodyById(String id) {
@@ -47,5 +59,16 @@ public class ExcelServiceImpl implements ExcelService {
         excelRepository.saveFile(excelFile);
         excelGenerationService.generateExcelReport(excelData);
         return excelFile;
+    }
+
+    @Override
+    public void deleteRequest(String id) {
+        excelRepository.deleteFile(id);
+        return;
+    }
+
+    @Override
+    public List<ExcelFile> getAllFiles() {
+        return excelRepository.getFiles();
     }
 }

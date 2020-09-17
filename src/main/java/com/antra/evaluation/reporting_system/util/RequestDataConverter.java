@@ -1,6 +1,7 @@
 package com.antra.evaluation.reporting_system.util;
 
 import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
+import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelData;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataHeader;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataSheet;
@@ -13,7 +14,9 @@ import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 
 public class RequestDataConverter {
@@ -29,12 +32,46 @@ public class RequestDataConverter {
         excelData.setGeneratedTime(LocalDateTime.now());
 
         List<ExcelDataSheet> sheets = new ArrayList<>();
+        List<String> originHeaders = excelRequest.getHeaders();
+        List<List<String>> originData = excelRequest.getData();
+        ExcelDataSheet excelDataSheet = convertListToSheet(originHeaders, originData, null);
+        sheets.add(excelDataSheet);
+        excelData.setSheets(sheets);
 
+        return excelData;
+    }
+
+    public static ExcelData convertMultiSheetRequestToData(MultiSheetExcelRequest request, int id) {
+        ExcelData excelData = new ExcelData();
+        excelData.setTitle(Integer.toString(id));
+        excelData.setGeneratedTime(LocalDateTime.now());
+
+        List<ExcelDataSheet> sheets = new ArrayList<>();
+        List<String> originHeaders = request.getHeaders();
+        int splitColumnIndex = 0;
+        //may not found splitBy here
+        while(splitColumnIndex < originHeaders.size() && !originHeaders.get(splitColumnIndex).equals(request.getSplitBy())) {
+            splitColumnIndex++;
+        }
+        List<List<String>> originData = request.getData();
+        int finalSplitColumnIndex = splitColumnIndex;
+        Map<String, List<List<String>>> originSplittedData = originData.stream()
+                .collect(Collectors.groupingBy(x->x.get(finalSplitColumnIndex)));
+
+        for(Map.Entry<String, List<List<String>>> entry : originSplittedData.entrySet()) {
+            ExcelDataSheet excelDataSheet = convertListToSheet(originHeaders, entry.getValue(), entry.getKey());
+            sheets.add(excelDataSheet);
+        }
+
+        excelData.setSheets(sheets);
+
+        return excelData;
+    }
+
+    private static ExcelDataSheet convertListToSheet(List<String> originHeaders, List<List<String>> originData, String title) {
         ExcelDataSheet excelDataSheet = new ExcelDataSheet();
         List<ExcelDataHeader> headers = new ArrayList<>();
         List<List<Object>> data = new ArrayList<>();
-        List<String> originHeaders = excelRequest.getHeaders();
-        List<List<String>> originData = excelRequest.getData();
         //ExcelDataHeader excelDataHeader = new ExcelDataHeader();
         List<String> sample = originData.get(0);
         for(int i = 0; i < originHeaders.size(); i++) {
@@ -80,11 +117,7 @@ public class RequestDataConverter {
             data.add(row);
         }
         excelDataSheet.setDataRows(data);
-        excelDataSheet.setTitle("1");
-        sheets.add(excelDataSheet);
-        excelData.setSheets(sheets);
-
-        return excelData;
+        excelDataSheet.setTitle(title == null ? "sheet1" : title);
+        return excelDataSheet;
     }
-
 }
