@@ -13,7 +13,7 @@ public interface ExcelService {
 
     ExcelFile saveRequest(ExcelRequest excelRequest) throws IOException;
 
-    void deleteRequest(String id);
+    ExcelFile deleteRequest(String id);
 
     List<ExcelFile> getAllFiles();
 

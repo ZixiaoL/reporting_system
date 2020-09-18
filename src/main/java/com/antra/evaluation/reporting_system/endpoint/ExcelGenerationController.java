@@ -1,5 +1,7 @@
 package com.antra.evaluation.reporting_system.endpoint;
 
+import com.antra.evaluation.reporting_system.exception.*;
+import com.antra.evaluation.reporting_system.pojo.api.ErrorResponse;
 import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.api.ExcelResponse;
 import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -35,50 +38,132 @@ public class ExcelGenerationController {
 
     @PostMapping("/excel")
     @ApiOperation("Generate Excel")
-    public ResponseEntity<ExcelResponse> createExcel(@RequestBody @Validated ExcelRequest request) throws IOException {
-        ExcelFile excelFile = excelService.saveRequest(request);
+    public ResponseEntity<ExcelResponse> createExcel(@RequestBody @Validated ExcelRequest request) {
+        log.info("Create Single Sheet Excel, Description {}", request.getDescription());
+        ExcelFile excelFile = new ExcelFile();
+        try {
+            excelFile = excelService.saveRequest(request);
+        } catch (IOException e) {
+            throw new ExcelUploadException("file save failed");
+        }
         ExcelResponse response = new ExcelResponse();
         response.setFileId(excelFile.getId());
+        response.setDescription(excelFile.getDescription());
+        response.setGeneratedTime(excelFile.getGeneratedTime());
+        response.setFileSize(excelFile.getFileSize());
+        response.setDownloadLink(excelFile.getDownloadLink());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PostMapping("/excel/auto")
     @ApiOperation("Generate Multi-Sheet Excel Using Split field")
-    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated MultiSheetExcelRequest request) throws IOException {
-        ExcelFile excelFile = excelService.saveMultiSheetRequest(request);
+    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated MultiSheetExcelRequest request) {
+        log.info("Create Multi Sheet Excel, Description {}", request.getDescription());
+        ExcelFile excelFile = null;
+        try {
+            excelFile = excelService.saveMultiSheetRequest(request);
+        } catch (IOException e) {
+            throw new ExcelUploadException("file save failed");
+        }
         ExcelResponse response = new ExcelResponse();
         response.setFileId(excelFile.getId());
+        response.setDescription(excelFile.getDescription());
+        response.setGeneratedTime(excelFile.getGeneratedTime());
+        response.setFileSize(excelFile.getFileSize());
+        response.setDownloadLink(excelFile.getDownloadLink());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/excel")
     @ApiOperation("List all existing files")
     public ResponseEntity<List<ExcelResponse>> listExcels() {
+        log.info("List All Excels");
         List<ExcelFile> excelResponses = excelService.getAllFiles();
 
         var response = new ArrayList<ExcelResponse>();
-        response = excelResponses.stream().map(x ->
-            {ExcelResponse curResponse = new ExcelResponse();curResponse.setFileId(x.getId());return curResponse;})
-            .collect(Collectors.toCollection(ArrayList::new));
+        response = excelResponses.stream().map(x -> {
+                ExcelResponse curResponse = new ExcelResponse();
+                curResponse.setFileId(x.getId());
+                curResponse.setDescription(x.getDescription());
+                curResponse.setGeneratedTime(x.getGeneratedTime());
+                curResponse.setFileSize(x.getFileSize());
+                curResponse.setDownloadLink(x.getDownloadLink());return curResponse;
+        }).collect(Collectors.toCollection(ArrayList::new));
 
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/excel/{id}/content")
-    public void downloadExcel(@PathVariable String id, HttpServletResponse response) throws IOException {
+    public void downloadExcel(@PathVariable String id, HttpServletResponse response) {
+        log.info("Download Excel, id {}", id);
         InputStream fis = excelService.getExcelBodyById(id);
         response.setHeader("Content-Type","application/vnd.ms-excel");
-        response.setHeader("Content-Disposition","attachment; filename=\""+ id + ".xlsx\""); // TODO: File name cannot be hardcoded here
-        FileCopyUtils.copy(fis, response.getOutputStream());
+        response.setHeader("Content-Disposition","attachment; filename=\""+ id + ".xlsx\"");
+        try {
+            FileCopyUtils.copy(fis, response.getOutputStream());
+        } catch (IOException e) {
+            throw new ExcelDownloadException("file transfer failed, please try again later");
+        }
     }
 
     @DeleteMapping("/excel/{id}")
     public ResponseEntity<ExcelResponse> deleteExcel(@PathVariable String id) {
-        excelService.deleteRequest(id);
+        log.info("Delete Excel, id {}", id);
+        ExcelFile excelFile = excelService.deleteRequest(id);
         var response = new ExcelResponse();
-        response.setFileId(id);
+        response.setFileId(excelFile.getId());
+        response.setDescription(excelFile.getDescription());
+        response.setGeneratedTime(excelFile.getGeneratedTime());
+        response.setFileSize(excelFile.getFileSize());
+        response.setDownloadLink(excelFile.getDownloadLink());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> exceptionHandler(Exception ex) {
+        ErrorResponse error = new ErrorResponse();
+        error.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        error.setMessage("Application Error");
+        log.error("Application Error", ex);
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> methodArgumentNotValidExceptionHandler(MethodArgumentNotValidException ex) {
+        ErrorResponse error = new ErrorResponse();
+        error.setErrorCode(HttpStatus.BAD_REQUEST.value());
+        String message = ex.getBindingResult().getFieldError().getDefaultMessage();
+        error.setMessage(message);
+        log.error(message, ex);
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(ExcelException.class)
+    public ResponseEntity<ErrorResponse> excelExceptionHandler(ExcelException ex) {
+        ErrorResponse error = new ErrorResponse();
+        error.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        String message = ex.getErrorMessage();
+        error.setMessage(message);
+        log.error(message, ex);
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    @ExceptionHandler(ExcelFormatException.class)
+    public ResponseEntity<ErrorResponse> excelFormatExceptionHandler(ExcelFormatException ex) {
+        ErrorResponse error = new ErrorResponse();
+        error.setErrorCode(HttpStatus.BAD_REQUEST.value());
+        String message = ex.getErrorMessage();
+        error.setMessage(message);
+        log.error(message, ex);
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(ExcelNotFoundException.class)
+    public ResponseEntity<ErrorResponse> excelDeleteExceptionHandler(ExcelNotFoundException ex) {
+        ErrorResponse error = new ErrorResponse();
+        error.setErrorCode(HttpStatus.BAD_REQUEST.value());
+        String message = ex.getErrorMessage();
+        error.setMessage(message);
+        log.error(message, ex);
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
 }
 // Log
 // Exception handling

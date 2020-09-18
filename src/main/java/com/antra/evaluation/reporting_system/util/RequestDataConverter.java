@@ -1,5 +1,6 @@
 package com.antra.evaluation.reporting_system.util;
 
+import com.antra.evaluation.reporting_system.exception.ExcelFormatException;
 import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelData;
@@ -26,10 +27,10 @@ public class RequestDataConverter {
             "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd HH:mm", "yyyyMMdd"};
 
 
-    public static ExcelData convertRequestToData(ExcelRequest excelRequest, int id) {
+    public static ExcelData convertRequestToData(ExcelRequest excelRequest, int id, LocalDateTime time) {
         ExcelData excelData = new ExcelData();
         excelData.setTitle(Integer.toString(id));
-        excelData.setGeneratedTime(LocalDateTime.now());
+        excelData.setGeneratedTime(time);
 
         List<ExcelDataSheet> sheets = new ArrayList<>();
         List<String> originHeaders = excelRequest.getHeaders();
@@ -41,10 +42,10 @@ public class RequestDataConverter {
         return excelData;
     }
 
-    public static ExcelData convertMultiSheetRequestToData(MultiSheetExcelRequest request, int id) {
+    public static ExcelData convertMultiSheetRequestToData(MultiSheetExcelRequest request, int id, LocalDateTime time) {
         ExcelData excelData = new ExcelData();
         excelData.setTitle(Integer.toString(id));
-        excelData.setGeneratedTime(LocalDateTime.now());
+        excelData.setGeneratedTime(time);
 
         List<ExcelDataSheet> sheets = new ArrayList<>();
         List<String> originHeaders = request.getHeaders();
@@ -100,13 +101,17 @@ public class RequestDataConverter {
                         row.add(originData.get(i).get(j));
                         break;
                     case NUMBER:
-                        row.add(NumberUtils.createNumber(originData.get(i).get(j)));
+                        try{
+                            row.add(NumberUtils.createNumber(originData.get(i).get(j)));
+                        } catch (NumberFormatException e) {
+                            throw new ExcelFormatException("data in one column should be of the same type");
+                        }
                         break;
                     case DATE:
                         try {
                             row.add(DateUtils.parseDate(sample.get(i), PARSE_PATTERNS));
                         } catch (ParseException e) {
-                            e.printStackTrace();
+                            throw new ExcelFormatException("data in one column should be of the same type");
                         }
                         break;
                     default:
