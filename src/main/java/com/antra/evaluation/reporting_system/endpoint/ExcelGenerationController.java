@@ -105,7 +105,7 @@ public class ExcelGenerationController {
         try {
             FileCopyUtils.copy(fis, response.getOutputStream());
         } catch (IOException e) {
-            throw new ExcelDownloadException("file transfer failed, please try again later");
+            throw new ExcelNotFoundException("file not exists");
         }
     }
 
@@ -142,8 +142,8 @@ public class ExcelGenerationController {
         log.error(message, ex);
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
-    @ExceptionHandler(ExcelException.class)
-    public ResponseEntity<ErrorResponse> excelExceptionHandler(ExcelException ex) {
+    @ExceptionHandler(ExcelUploadException.class)
+    public ResponseEntity<ErrorResponse> excelUploadExceptionHandler(ExcelUploadException ex) {
         ErrorResponse error = new ErrorResponse();
         error.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
         String message = ex.getErrorMessage();
@@ -171,6 +171,3 @@ public class ExcelGenerationController {
     }
 
 }
-// Log
-// Exception handling
-// Validation

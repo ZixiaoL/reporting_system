@@ -1,7 +1,6 @@
 package com.antra.evaluation.reporting_system.pojo.api;
 
 import javax.validation.constraints.AssertTrue;
-import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import java.util.List;
 
