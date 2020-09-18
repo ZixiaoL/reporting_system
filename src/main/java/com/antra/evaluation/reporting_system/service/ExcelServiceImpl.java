@@ -29,6 +29,17 @@ public class ExcelServiceImpl implements ExcelService {
     ExcelGenerationService excelGenerationService;
 
     @Override
+    public ExcelFile saveRequest(ExcelRequest excelRequest) throws IOException {
+        int curId = id.incrementAndGet();
+        LocalDateTime curTime = LocalDateTime.now();
+        ExcelData excelData = RequestDataConverter.convertRequestToData(excelRequest, curId, curTime);
+        excelGenerationService.generateExcelReport(excelData);
+        ExcelFile excelFile = RequestFileConverter.convertRequestToFile(excelRequest, curId, curTime);
+        excelRepository.saveFile(excelFile);
+        return excelFile;
+    }
+
+    @Override
     public ExcelFile saveMultiSheetRequest(MultiSheetExcelRequest request) throws IOException {
         int curId = id.incrementAndGet();
         LocalDateTime curTime = LocalDateTime.now();
@@ -42,25 +53,14 @@ public class ExcelServiceImpl implements ExcelService {
     @Override
     public InputStream getExcelBodyById(String id) {
         if(excelRepository.getFileById(id) == null) {
-            throw new ExcelNotFoundException("file not exists");
+            return null;
         }
         File file = new File(id + ".xlsx");
         try {
             return new FileInputStream(file);
         } catch (FileNotFoundException e) {
-            throw new ExcelDownloadException("file not exists");
+            throw new ExcelNotFoundException("file not exists");
         }
-    }
-
-    @Override
-    public ExcelFile saveRequest(ExcelRequest excelRequest) throws IOException {
-        int curId = id.incrementAndGet();
-        LocalDateTime curTime = LocalDateTime.now();
-        ExcelData excelData = RequestDataConverter.convertRequestToData(excelRequest, curId, curTime);
-        excelGenerationService.generateExcelReport(excelData);
-        ExcelFile excelFile = RequestFileConverter.convertRequestToFile(excelRequest, curId, curTime);
-        excelRepository.saveFile(excelFile);
-        return excelFile;
     }
 
     @Override

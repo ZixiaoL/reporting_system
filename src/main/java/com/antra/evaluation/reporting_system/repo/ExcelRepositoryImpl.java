@@ -28,9 +28,6 @@ public class ExcelRepositoryImpl implements ExcelRepository {
 
     @Override
     public ExcelFile deleteFile(String id) {
-        if(excelData.get(id) == null) {
-            throw new ExcelNotFoundException("file not exist");
-        };
         return excelData.remove(id);
     }
 

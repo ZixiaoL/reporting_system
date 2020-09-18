@@ -97,6 +97,9 @@ public class ExcelGenerationController {
     public void downloadExcel(@PathVariable String id, HttpServletResponse response) {
         log.info("Download Excel, id {}", id);
         InputStream fis = excelService.getExcelBodyById(id);
+        if(fis == null) {
+            throw new ExcelNotFoundException("file not exists");
+        }
         response.setHeader("Content-Type","application/vnd.ms-excel");
         response.setHeader("Content-Disposition","attachment; filename=\""+ id + ".xlsx\"");
         try {
@@ -110,6 +113,9 @@ public class ExcelGenerationController {
     public ResponseEntity<ExcelResponse> deleteExcel(@PathVariable String id) {
         log.info("Delete Excel, id {}", id);
         ExcelFile excelFile = excelService.deleteRequest(id);
+        if(excelFile == null) {
+            throw new ExcelNotFoundException("file not exists");
+        }
         var response = new ExcelResponse();
         response.setFileId(excelFile.getId());
         response.setDescription(excelFile.getDescription());

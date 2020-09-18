@@ -9,14 +9,12 @@ import com.antra.evaluation.reporting_system.pojo.report.ExcelDataSheet;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataType;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.lang3.time.DateUtils;
-import org.springframework.stereotype.Component;
 
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -73,21 +71,32 @@ public class RequestDataConverter {
         ExcelDataSheet excelDataSheet = new ExcelDataSheet();
         List<ExcelDataHeader> headers = new ArrayList<>();
         List<List<Object>> data = new ArrayList<>();
-        //ExcelDataHeader excelDataHeader = new ExcelDataHeader();
         List<String> sample = originData.get(0);
         for(int i = 0; i < originHeaders.size(); i++) {
             ExcelDataHeader excelDataHeader = new ExcelDataHeader();
-            try {
-                NumberUtils.createNumber(sample.get(i));
-                excelDataHeader.setType(ExcelDataType.NUMBER);
-            } catch(NumberFormatException nfe) {
+            int finalI = i;
+            if(originData.stream().map(x->x.get(finalI)).allMatch(x-> {
                 try {
-                    DateUtils.parseDate(sample.get(i), PARSE_PATTERNS);
-                    excelDataHeader.setType(ExcelDataType.DATE);
-                } catch(ParseException pe) {
-                    excelDataHeader.setType(ExcelDataType.STRING);
+                    NumberUtils.createDouble(x);
+                } catch(NumberFormatException nfe) {
+                    return false;
                 }
+                return true;
+            })) {
+                excelDataHeader.setType(ExcelDataType.NUMBER);
+            } else if(originData.stream().map(x->x.get(finalI)).allMatch(x-> {
+                try {
+                    DateUtils.parseDate(x, PARSE_PATTERNS);
+                } catch(ParseException pe) {
+                    return false;
+                }
+                return true;
+            })) {
+                excelDataHeader.setType(ExcelDataType.DATE);
+            } else {
+                excelDataHeader.setType(ExcelDataType.STRING);
             }
+
             excelDataHeader.setName(originHeaders.get(i));
             //excelDataHeader.setWidth(0);
             headers.add(excelDataHeader);
@@ -102,16 +111,17 @@ public class RequestDataConverter {
                         break;
                     case NUMBER:
                         try{
-                            row.add(NumberUtils.createNumber(originData.get(i).get(j)));
+                            row.add(NumberUtils.createDouble(originData.get(i).get(j)));
                         } catch (NumberFormatException e) {
                             throw new ExcelFormatException("data in one column should be of the same type");
                         }
                         break;
                     case DATE:
                         try {
-                            row.add(DateUtils.parseDate(sample.get(i), PARSE_PATTERNS));
+                            row.add(DateUtils.parseDate(originData.get(i).get(j), PARSE_PATTERNS));
+                            System.out.println(DateUtils.parseDate(originData.get(i).get(j), PARSE_PATTERNS));
                         } catch (ParseException e) {
-                            throw new ExcelFormatException("data in one column should be of the same type");
+                            throw new ExcelFormatException("datas in one column should be of the same type");
                         }
                         break;
                     default:
