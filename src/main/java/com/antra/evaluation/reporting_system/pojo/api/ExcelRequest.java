@@ -1,17 +1,28 @@
 package com.antra.evaluation.reporting_system.pojo.api;
 
+
+
+import com.antra.evaluation.reporting_system.validation.LogicCheck;
+import com.antra.evaluation.reporting_system.validation.NotNullCheck;
+
 import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
+
 public class ExcelRequest {
-    @NotEmpty(message = "headers cannot be empty")
+
+    @NotNull(message = "headers cannot be empty", groups = {NotNullCheck.class})
+    @NotEmpty(message = "headers cannot be empty", groups = {NotNullCheck.class})
     private List<String> headers;
     private String description;
-    @NotEmpty(message = "data cannot be empty")
+
+    @NotNull(message = "data cannot be empty", groups = {NotNullCheck.class})
+    @NotEmpty(message = "data cannot be empty", groups = {NotNullCheck.class})
     private List<List<String>> data;
 
-    @AssertTrue(message = "data and headers should be of the same length")
+    @AssertTrue(message = "data and headers should be of the same length", groups = {LogicCheck.class})
     public boolean isSameLength() {
         for(List<String> row : data) {
             if(row.size() != headers.size())return false;

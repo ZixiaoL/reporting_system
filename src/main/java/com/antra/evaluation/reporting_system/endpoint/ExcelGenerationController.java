@@ -7,6 +7,7 @@ import com.antra.evaluation.reporting_system.pojo.api.ExcelResponse;
 import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelFile;
 import com.antra.evaluation.reporting_system.service.ExcelService;
+import com.antra.evaluation.reporting_system.validation.GroupSequences;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ public class ExcelGenerationController {
 
     @PostMapping("/excel")
     @ApiOperation("Generate Excel")
-    public ResponseEntity<ExcelResponse> createExcel(@RequestBody @Validated ExcelRequest request) {
+    public ResponseEntity<ExcelResponse> createExcel(@RequestBody @Validated({GroupSequences.class}) ExcelRequest request) {
         log.info("Create Single Sheet Excel, Description {}", request.getDescription());
         ExcelFile excelFile = new ExcelFile();
         try {
@@ -57,7 +58,7 @@ public class ExcelGenerationController {
 
     @PostMapping("/excel/auto")
     @ApiOperation("Generate Multi-Sheet Excel Using Split field")
-    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated MultiSheetExcelRequest request) {
+    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated({GroupSequences.class}) MultiSheetExcelRequest request) {
         log.info("Create Multi Sheet Excel, Description {}", request.getDescription());
         ExcelFile excelFile = null;
         try {
@@ -128,10 +129,10 @@ public class ExcelGenerationController {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> exceptionHandler(Exception ex) {
         ErrorResponse error = new ErrorResponse();
-        error.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        error.setMessage("Application Error");
-        log.error("Application Error", ex);
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        error.setErrorCode(HttpStatus.BAD_REQUEST.value());
+        error.setMessage("request not valid");
+        log.error("request not valid", ex);
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> methodArgumentNotValidExceptionHandler(MethodArgumentNotValidException ex) {
@@ -142,6 +143,7 @@ public class ExcelGenerationController {
         log.error(message, ex);
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
+
     @ExceptionHandler(ExcelUploadException.class)
     public ResponseEntity<ErrorResponse> excelUploadExceptionHandler(ExcelUploadException ex) {
         ErrorResponse error = new ErrorResponse();
