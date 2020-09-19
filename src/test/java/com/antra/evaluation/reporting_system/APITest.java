@@ -126,7 +126,7 @@ public class APITest {
                 .post("/excel/auto").peek().
                 then().assertThat()
                 .statusCode(400)
-                .body("message", Matchers.equalTo("splitBy cannot be blank"));
+                .body("message", Matchers.equalTo("splitBy cannot be empty"));
     }
 
     @Test

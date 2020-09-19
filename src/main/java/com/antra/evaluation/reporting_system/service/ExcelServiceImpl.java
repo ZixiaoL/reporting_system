@@ -2,7 +2,6 @@ package com.antra.evaluation.reporting_system.service;
 
 import com.antra.evaluation.reporting_system.exception.ExcelNotFoundException;
 import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
-import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelData;
 import com.antra.evaluation.reporting_system.repo.ExcelRepository;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelFile;
@@ -39,7 +38,7 @@ public class ExcelServiceImpl implements ExcelService {
     }
 
     @Override
-    public ExcelFile saveMultiSheetRequest(MultiSheetExcelRequest request) throws IOException {
+    public ExcelFile saveMultiSheetRequest(ExcelRequest request) throws IOException {
         int curId = id.incrementAndGet();
         LocalDateTime curTime = LocalDateTime.now();
         ExcelData excelData = RequestDataConverter.convertMultiSheetRequestToData(request, curId, curTime);

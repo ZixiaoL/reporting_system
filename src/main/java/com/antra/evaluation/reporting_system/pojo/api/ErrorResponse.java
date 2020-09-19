@@ -1,6 +1,6 @@
 package com.antra.evaluation.reporting_system.pojo.api;
 
-public class ErrorResponse {
+public class ErrorResponse implements Response{
     private int errorCode;
     private String message;
 

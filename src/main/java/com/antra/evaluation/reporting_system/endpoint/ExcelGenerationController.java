@@ -1,14 +1,13 @@
 package com.antra.evaluation.reporting_system.endpoint;
 
 import com.antra.evaluation.reporting_system.exception.*;
-import com.antra.evaluation.reporting_system.pojo.api.ErrorResponse;
-import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
-import com.antra.evaluation.reporting_system.pojo.api.ExcelResponse;
-import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
+import com.antra.evaluation.reporting_system.pojo.api.*;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelFile;
 import com.antra.evaluation.reporting_system.service.ExcelService;
-import com.antra.evaluation.reporting_system.validation.GroupSequences;
+import com.antra.evaluation.reporting_system.validation.MultiSheetGroupSequences;
+import com.antra.evaluation.reporting_system.validation.SingleSheetGroupSequences;
 import io.swagger.annotations.ApiOperation;
+import org.apache.commons.compress.utils.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,8 +22,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @RestController
 public class ExcelGenerationController {
@@ -39,9 +41,9 @@ public class ExcelGenerationController {
 
     @PostMapping("/excel")
     @ApiOperation("Generate Excel")
-    public ResponseEntity<ExcelResponse> createExcel(@RequestBody @Validated({GroupSequences.class}) ExcelRequest request) {
+    public ResponseEntity<ExcelResponse> createExcel(@RequestBody @Validated({SingleSheetGroupSequences.class}) ExcelRequest request) {
         log.info("Create Single Sheet Excel, Description {}", request.getDescription());
-        ExcelFile excelFile = new ExcelFile();
+        ExcelFile excelFile;
         try {
             excelFile = excelService.saveRequest(request);
         } catch (IOException e) {
@@ -58,9 +60,9 @@ public class ExcelGenerationController {
 
     @PostMapping("/excel/auto")
     @ApiOperation("Generate Multi-Sheet Excel Using Split field")
-    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated({GroupSequences.class}) MultiSheetExcelRequest request) {
+    public ResponseEntity<ExcelResponse> createMultiSheetExcel(@RequestBody @Validated({MultiSheetGroupSequences.class}) ExcelRequest request) {
         log.info("Create Multi Sheet Excel, Description {}", request.getDescription());
-        ExcelFile excelFile = null;
+        ExcelFile excelFile;
         try {
             excelFile = excelService.saveMultiSheetRequest(request);
         } catch (IOException e) {
@@ -73,6 +75,45 @@ public class ExcelGenerationController {
         response.setFileSize(excelFile.getFileSize());
         response.setDownloadLink(excelFile.getDownloadLink());
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/excel/batch")
+    @ApiOperation("Generate Excel")
+    public ResponseEntity<List<Response>> createBatchExcel(@RequestBody @Validated({SingleSheetGroupSequences.class}) BatchExcelRequest batchExcelRequest) {
+        boolean ioFail = false;
+        boolean formatFail = false;
+        List<ExcelRequest> requests = batchExcelRequest.getRequests();
+        log.info("Create Batch Excel Files, Description {}", requests.stream().map(ExcelRequest::getDescription)
+                .collect(Collectors.toList()));
+        List<Response> responses = new ArrayList<>();
+        for(ExcelRequest excelRequest : requests) {
+            ExcelFile excelFile;
+            try {
+                if(excelRequest.getSplitBy() != null && excelRequest.getSplitBy().length() != 0) {
+                    excelFile = excelService.saveMultiSheetRequest(excelRequest);
+                } else {
+                    excelFile = excelService.saveRequest(excelRequest);
+                }
+                ExcelResponse response = new ExcelResponse();
+                response.setFileId(excelFile.getId());
+                response.setDescription(excelFile.getDescription());
+                response.setGeneratedTime(excelFile.getGeneratedTime());
+                response.setFileSize(excelFile.getFileSize());
+                response.setDownloadLink(excelFile.getDownloadLink());
+                responses.add(response);
+            } catch (IOException ioe) {
+                ExcelUploadException eue = new ExcelUploadException("file save failed");
+                responses.add(excelUploadExceptionHandler(eue).getBody());
+                log.error(eue.getErrorMessage(), eue);
+                ioFail = true;
+            } catch (ExcelFormatException efe) {
+                responses.add(excelFormatExceptionHandler(efe).getBody());
+                log.error(efe.getErrorMessage(), efe);
+                formatFail = true;
+            }
+        }
+        return new ResponseEntity<>(responses, ioFail ? HttpStatus.INTERNAL_SERVER_ERROR :
+                formatFail ? HttpStatus.BAD_REQUEST : HttpStatus.OK);
     }
 
     @GetMapping("/excel")
@@ -107,6 +148,36 @@ public class ExcelGenerationController {
             FileCopyUtils.copy(fis, response.getOutputStream());
         } catch (IOException e) {
             throw new ExcelNotFoundException("file not exists");
+        }
+    }
+
+    @GetMapping("/excel/content")
+    public void downloadBatchExcel(HttpServletResponse response, @RequestParam String... fileId) {
+        log.info("Download Excel, id {}", Arrays.stream(fileId).collect(Collectors.toList()));
+        response.setHeader("Content-Type","application/zip");
+        response.setHeader("Content-Disposition","attachment; filename=\""+Arrays.stream(fileId).collect(Collectors.toList()).toString()+".zip\"");
+        try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
+            for(String id : fileId) {
+                InputStream fis = excelService.getExcelBodyById(id);
+                if(fis == null) {
+                    ExcelNotFoundException enfe = new ExcelNotFoundException("here file not exists");
+                    log.error(enfe.getErrorMessage(), enfe);
+                    continue;
+                }
+                ZipEntry zipEntry = new ZipEntry(id+".xlsx");
+                zos.putNextEntry(zipEntry);
+                try {
+                    zos.write(IOUtils.toByteArray(fis));
+                } catch (IOException e) {
+                    ExcelNotFoundException enfe = new ExcelNotFoundException("here file not exists");
+                    log.error(enfe.getErrorMessage(), enfe);
+                    continue;
+                }
+                zos.closeEntry();
+            }
+        } catch (IOException e) {
+            ExcelNotFoundException enfe = new ExcelNotFoundException("here file not exists");
+            log.error(enfe.getErrorMessage(), enfe);
         }
     }
 
@@ -163,7 +234,7 @@ public class ExcelGenerationController {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
     @ExceptionHandler(ExcelNotFoundException.class)
-    public ResponseEntity<ErrorResponse> excelDeleteExceptionHandler(ExcelNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> excelNotFoundExceptionHandler(ExcelNotFoundException ex) {
         ErrorResponse error = new ErrorResponse();
         error.setErrorCode(HttpStatus.BAD_REQUEST.value());
         String message = ex.getErrorMessage();

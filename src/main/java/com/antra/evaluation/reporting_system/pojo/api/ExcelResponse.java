@@ -2,7 +2,7 @@ package com.antra.evaluation.reporting_system.pojo.api;
 
 import java.time.LocalDateTime;
 
-public class ExcelResponse {
+public class ExcelResponse implements Response {
     private String fileId;
     private String description;
     private LocalDateTime generatedTime;

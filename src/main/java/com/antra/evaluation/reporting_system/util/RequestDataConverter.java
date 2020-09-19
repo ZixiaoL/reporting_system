@@ -2,7 +2,6 @@ package com.antra.evaluation.reporting_system.util;
 
 import com.antra.evaluation.reporting_system.exception.ExcelFormatException;
 import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
-import com.antra.evaluation.reporting_system.pojo.api.MultiSheetExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelData;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataHeader;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataSheet;
@@ -40,7 +39,7 @@ public class RequestDataConverter {
         return excelData;
     }
 
-    public static ExcelData convertMultiSheetRequestToData(MultiSheetExcelRequest request, int id, LocalDateTime time) {
+    public static ExcelData convertMultiSheetRequestToData(ExcelRequest request, int id, LocalDateTime time) {
         ExcelData excelData = new ExcelData();
         excelData.setTitle(Integer.toString(id));
         excelData.setGeneratedTime(time);
