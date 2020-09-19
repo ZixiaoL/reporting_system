@@ -2,11 +2,9 @@ package com.antra.evaluation.reporting_system;
 
 import com.antra.evaluation.reporting_system.endpoint.ExcelGenerationController;
 import com.antra.evaluation.reporting_system.exception.ExcelFormatException;
-import com.antra.evaluation.reporting_system.pojo.api.ExcelRequest;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelFile;
 import com.antra.evaluation.reporting_system.service.ExcelService;
 import io.restassured.http.ContentType;
-import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,11 +15,10 @@ import org.mockito.MockitoAnnotations;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
+import static io.restassured.module.mockmvc.RestAssuredMockMvc.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
@@ -32,7 +29,7 @@ public class APITest {
     @BeforeEach
     public void configMock() {
         MockitoAnnotations.initMocks(this);
-        RestAssuredMockMvc.standaloneSetup(new ExcelGenerationController(excelService));
+        standaloneSetup(new ExcelGenerationController(excelService));
     }
 
     @Test
@@ -104,7 +101,7 @@ public class APITest {
 
 
     @Test
-    public void testMultiSHeetExcelGeneration() throws IOException {
+    public void testMultiSheetExcelGeneration() throws IOException {
         ExcelFile savedExcelFile = new ExcelFile();
         savedExcelFile.setId("1");
         Mockito.when(excelService.saveMultiSheetRequest(any())).thenReturn(savedExcelFile);
@@ -117,7 +114,7 @@ public class APITest {
     }
 
     @Test
-    public void testMultiSHeetExcelGenerationWithNoSplitBy() throws IOException {
+    public void testMultiSheetExcelGenerationWithNoSplitBy() throws IOException {
         ExcelFile savedExcelFile = new ExcelFile();
         savedExcelFile.setId("1");
         Mockito.when(excelService.saveMultiSheetRequest(any())).thenReturn(savedExcelFile);
@@ -130,7 +127,7 @@ public class APITest {
     }
 
     @Test
-    public void testMultiSHeetExcelGenerationWithSplitByNotInHeaders() throws IOException {
+    public void testMultiSheetExcelGenerationWithSplitByNotInHeaders() throws IOException {
         ExcelFile savedExcelFile = new ExcelFile();
         savedExcelFile.setId("1");
         Mockito.when(excelService.saveMultiSheetRequest(any())).thenReturn(savedExcelFile);
@@ -155,18 +152,6 @@ public class APITest {
     }
 
     @Test
-    public void testExcelGenerationWithWrongUrl() throws IOException {
-        ExcelFile savedExcelFile = new ExcelFile();
-        savedExcelFile.setId("1");
-        Mockito.when(excelService.saveRequest(any())).thenReturn(savedExcelFile);
-        given().accept("application/json").contentType(ContentType.JSON)
-                .body("{\"headers\":[\"Name\",\"Age\"], \"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]]}")
-                .post("/excel/1").peek().
-                then().assertThat()
-                .statusCode(405);
-    }
-
-    @Test
     public void testExcelGenerationButIOExceptionRaised() throws IOException {
         Mockito.when(excelService.saveRequest(any())).thenThrow(new IOException());
         given().accept("application/json").contentType(ContentType.JSON)
@@ -185,5 +170,71 @@ public class APITest {
                 then().assertThat()
                 .statusCode(400)
                 .body("message", Matchers.equalTo("data in one column should be of the same type"));
+    }
+
+    @Test
+    public void testBatchExcelGeneration() throws IOException {
+        ExcelFile savedExcelFile1 = new ExcelFile();
+        savedExcelFile1.setId("1");
+        ExcelFile savedExcelFile2 = new ExcelFile();
+        savedExcelFile2.setId("2");
+        Mockito.when(excelService.saveRequest(any())).thenReturn(savedExcelFile1);
+        Mockito.when(excelService.saveMultiSheetRequest(any())).thenReturn(savedExcelFile2);
+        given().accept("application/json").contentType(ContentType.JSON)
+                .body("{\"requests\":[{\"headers\":[\"Name\",\"Age\"], \"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]]}," +
+                        "{\"headers\":[\"Name\",\"Age\"], \"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]], \"splitBy\":\"Name\"}]}")
+                .post("/excel/batch").peek().
+                then().assertThat()
+                .statusCode(200)
+                .body("fileId", Matchers.hasItems("1", "2"));
+    }
+
+    @Test
+    public void testBatchExcelGenerationWithPartialFailure() throws IOException {
+        ExcelFile savedExcelFile = new ExcelFile();
+        savedExcelFile.setId("1");
+        Mockito.when(excelService.saveRequest(any())).thenReturn(savedExcelFile);
+        Mockito.when(excelService.saveMultiSheetRequest(any())).thenThrow(new ExcelFormatException("data in one column should be of the same type"));
+        given().accept("application/json").contentType(ContentType.JSON)
+                .body("{\"requests\":[{\"headers\":[\"Name\",\"Age\"], \"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]]}," +
+                        "{\"headers\":[\"Name\",\"Age\"], \"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]], \"splitBy\":\"Name\"}]}")
+                .post("/excel/batch").peek().
+                then().assertThat()
+                .statusCode(400)
+                .body("fileId", Matchers.hasItem("1"))
+                .body("message", Matchers.hasItem("data in one column should be of the same type"));
+    }
+
+    @Test
+    public void testBatchExcelGenerationWithNoHeader() throws IOException {
+        ExcelFile savedExcelFile1 = new ExcelFile();
+        savedExcelFile1.setId("1");
+        ExcelFile savedExcelFile2 = new ExcelFile();
+        savedExcelFile2.setId("2");
+        Mockito.when(excelService.saveRequest(any())).thenReturn(savedExcelFile1);
+        Mockito.when(excelService.saveMultiSheetRequest(any())).thenReturn(savedExcelFile2);
+        given().accept("application/json").contentType(ContentType.JSON)
+                .body("{\"requests\":[{\"headers\":[\"Name\",\"Age\"], \"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]]}," +
+                        "{\"data\":[[\"Teresa\",\"5\"],[\"Daniel\",\"1\"]], \"splitBy\":\"Name\"}]}")
+                .post("/excel/batch").peek().
+                then().assertThat()
+                .statusCode(400)
+                .body("message", Matchers.equalTo("headers cannot be empty"));
+    }
+
+    @Test
+    public void testBatchFileDownload() throws FileNotFoundException {
+        Mockito.when(excelService.getExcelBodyById(anyString())).thenReturn(new FileInputStream("temp.xlsx"));
+        given().accept("application/json").get("/excel/content/batch?fileId=1&fileId=2").peek().
+                then().assertThat()
+                .statusCode(200);
+    }
+
+    @Test
+    public void testBatchFileDownloadWithInvalidId() {
+        Mockito.when(excelService.getExcelBodyById(anyString())).thenReturn(null);
+        given().accept("application/json").get("/excel/content/batch?fileId=1&fileId=2").peek().
+                then().assertThat()
+                .statusCode(400);
     }
 }

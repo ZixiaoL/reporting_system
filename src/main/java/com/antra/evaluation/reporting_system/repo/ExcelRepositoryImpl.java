@@ -31,7 +31,7 @@ public class ExcelRepositoryImpl implements ExcelRepository {
 
     @Override
     public List<ExcelFile> getFiles() {
-        return new ArrayList<ExcelFile>(excelData.values());
+        return new ArrayList<>(excelData.values());
     }
 }
 

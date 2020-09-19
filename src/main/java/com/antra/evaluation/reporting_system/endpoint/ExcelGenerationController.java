@@ -78,7 +78,7 @@ public class ExcelGenerationController {
     }
 
     @PostMapping("/excel/batch")
-    @ApiOperation("Generate Excel")
+    @ApiOperation("Generate multiple Excel files in one request")
     public ResponseEntity<List<Response>> createBatchExcel(@RequestBody @Validated({SingleSheetGroupSequences.class}) BatchExcelRequest batchExcelRequest) {
         boolean ioFail = false;
         boolean formatFail = false;
@@ -151,7 +151,8 @@ public class ExcelGenerationController {
         }
     }
 
-    @GetMapping("/excel/content")
+    @GetMapping("/excel/content/batch")
+    @ApiOperation("Download Excel")
     public void downloadBatchExcel(HttpServletResponse response, @RequestParam String... fileId) {
         log.info("Download Excel, id {}", Arrays.stream(fileId).collect(Collectors.toList()));
         response.setHeader("Content-Type","application/zip");
@@ -160,7 +161,8 @@ public class ExcelGenerationController {
             for(String id : fileId) {
                 InputStream fis = excelService.getExcelBodyById(id);
                 if(fis == null) {
-                    ExcelNotFoundException enfe = new ExcelNotFoundException("here file not exists");
+                    response.setStatus(400);
+                    ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
                     log.error(enfe.getErrorMessage(), enfe);
                     continue;
                 }
@@ -169,19 +171,22 @@ public class ExcelGenerationController {
                 try {
                     zos.write(IOUtils.toByteArray(fis));
                 } catch (IOException e) {
-                    ExcelNotFoundException enfe = new ExcelNotFoundException("here file not exists");
+                    response.setStatus(500);
+                    ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
                     log.error(enfe.getErrorMessage(), enfe);
                     continue;
                 }
                 zos.closeEntry();
             }
         } catch (IOException e) {
-            ExcelNotFoundException enfe = new ExcelNotFoundException("here file not exists");
+            response.setStatus(500);
+            ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
             log.error(enfe.getErrorMessage(), enfe);
         }
     }
 
     @DeleteMapping("/excel/{id}")
+    @ApiOperation("Delete Excel")
     public ResponseEntity<ExcelResponse> deleteExcel(@PathVariable String id) {
         log.info("Delete Excel, id {}", id);
         ExcelFile excelFile = excelService.deleteRequest(id);

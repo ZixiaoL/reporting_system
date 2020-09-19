@@ -15,7 +15,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Data Stucture
+ * Data Structure
  * data - title, generatedTime
  * - sheets
  *      -sheet1 - title (required)
