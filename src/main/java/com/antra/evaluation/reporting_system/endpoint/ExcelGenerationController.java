@@ -78,7 +78,7 @@ public class ExcelGenerationController {
     }
 
     @PostMapping("/excel/batch")
-    @ApiOperation("Generate multiple Excel files in one request")
+    @ApiOperation("Generate Multiple Excel Files In One Request")
     public ResponseEntity<List<Response>> createBatchExcel(@RequestBody @Validated({SingleSheetGroupSequences.class}) BatchExcelRequest batchExcelRequest) {
         boolean ioFail = false;
         boolean formatFail = false;
@@ -117,7 +117,7 @@ public class ExcelGenerationController {
     }
 
     @GetMapping("/excel")
-    @ApiOperation("List all existing files")
+    @ApiOperation("List All Existing Files")
     public ResponseEntity<List<ExcelResponse>> listExcels() {
         log.info("List All Excels");
         List<ExcelFile> excelResponses = excelService.getAllFiles();
@@ -136,6 +136,7 @@ public class ExcelGenerationController {
     }
 
     @GetMapping("/excel/{id}/content")
+    @ApiOperation("Download Excel")
     public void downloadExcel(@PathVariable String id, HttpServletResponse response) {
         log.info("Download Excel, id {}", id);
         InputStream fis = excelService.getExcelBodyById(id);
@@ -152,7 +153,7 @@ public class ExcelGenerationController {
     }
 
     @GetMapping("/excel/content/batch")
-    @ApiOperation("Download Excel")
+    @ApiOperation("Download Multiple Excels In One Request")
     public void downloadBatchExcel(HttpServletResponse response, @RequestParam String... fileId) {
         log.info("Download Excel, id {}", Arrays.stream(fileId).collect(Collectors.toList()));
         response.setHeader("Content-Type","application/zip");
@@ -161,7 +162,6 @@ public class ExcelGenerationController {
             for(String id : fileId) {
                 InputStream fis = excelService.getExcelBodyById(id);
                 if(fis == null) {
-                    response.setStatus(400);
                     ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
                     log.error(enfe.getErrorMessage(), enfe);
                     continue;
@@ -171,7 +171,6 @@ public class ExcelGenerationController {
                 try {
                     zos.write(IOUtils.toByteArray(fis));
                 } catch (IOException e) {
-                    response.setStatus(500);
                     ExcelTransferException ete = new ExcelTransferException("file download failed");
                     log.error(ete.getErrorMessage(), ete);
                     continue;
@@ -179,7 +178,6 @@ public class ExcelGenerationController {
                 zos.closeEntry();
             }
         } catch (IOException e) {
-            response.setStatus(500);
             ExcelTransferException ete = new ExcelTransferException("file download failed");
             log.error(ete.getErrorMessage(), ete);
         }
