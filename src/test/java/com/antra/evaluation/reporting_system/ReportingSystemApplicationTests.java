@@ -3,6 +3,9 @@ package com.antra.evaluation.reporting_system;
 import com.antra.evaluation.reporting_system.pojo.api.*;
 import com.antra.evaluation.reporting_system.validation.MultiSheetGroupSequences;
 import com.antra.evaluation.reporting_system.validation.SingleSheetGroupSequences;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +43,9 @@ public class ReportingSystemApplicationTests {
     public static void setUp() {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
+        for(int i = 0; i <= 10; i++) {
+            new File(i+".xlsx").delete();
+        }
     }
 
     @BeforeEach // We are using JUnit 5, @Before is replaced by @BeforeEach
@@ -85,54 +91,54 @@ public class ReportingSystemApplicationTests {
     public void testExcelGeneration() {
         RestTemplate restTemplate = new RestTemplate();
         ExcelResponse excelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
-        assertTrue(excelResponse.getFileId() != null && excelResponse.getFileId().equals("1"));
-        assertTrue(new File("1.xlsx").length() != 0);
+        assertTrue(excelResponse.getFileId() != null);
+        assertTrue(new File(excelResponse.getFileId()+".xlsx").length() != 0);
     }
 
     @Test
     public void testMultiSheetExcelGeneration() {
         RestTemplate restTemplate = new RestTemplate();
         ExcelResponse excelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel/auto", multiSheetExcelRequest, ExcelResponse.class);
-        assertTrue(excelResponse.getFileId() != null && excelResponse.getFileId().equals("1"));
-        assertTrue(new File("1.xlsx").length() != 0);
+        assertTrue(excelResponse.getFileId() != null);
+        assertTrue(new File(excelResponse.getFileId()+".xlsx").length() != 0);
     }
 
     @Test
     public void testFileDownload() {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
-        when().get(REST_SERVICE_URI+"/excel/1/content").peek().then().assertThat().statusCode(200);
+        ExcelResponse excelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
+        when().get(REST_SERVICE_URI+"/excel/"+excelResponse.getFileId()+"/content").peek().then().assertThat().statusCode(200);
     }
 
     @Test
     public void testFileDownloadWithInvalidId() {
-        when().get(REST_SERVICE_URI+"/excel/1/content").peek().then().assertThat().statusCode(400)
+        when().get(REST_SERVICE_URI+"/excel/123abc/content").peek().then().assertThat().statusCode(400)
                 .body("message", Matchers.equalTo("file not exists"));
     }
 
     @Test
     public void testFileDeletion() {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
-        when().delete(REST_SERVICE_URI+"/excel/1").peek().then().assertThat().statusCode(200)
-                .body("fileId", Matchers.equalTo("1"));
+        ExcelResponse excelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
+        when().delete(REST_SERVICE_URI+"/excel/"+excelResponse.getFileId()).peek().then().assertThat().statusCode(200)
+                .body("fileId", Matchers.equalTo(excelResponse.getFileId()));
     }
 
     @Test
     public void testFileDeletionWithInvalidId() {
-        when().delete(REST_SERVICE_URI+"/excel/1").peek().then().assertThat().statusCode(400)
+        when().delete(REST_SERVICE_URI+"/excel/123abc").peek().then().assertThat().statusCode(400)
                 .body("message", Matchers.equalTo("file not exists"));
     }
 
     @Test
     public void testListFiles() {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel/auto", multiSheetExcelRequest, ExcelResponse.class);
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel/auto", multiSheetExcelRequest, ExcelResponse.class);
+        ExcelResponse singleSheetExcelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
+        ExcelResponse multiSheetExcelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel/auto", multiSheetExcelRequest, ExcelResponse.class);
         when().get(REST_SERVICE_URI+"/excel").peek().
                 then().assertThat()
                 .statusCode(200)
-                .body("fileId", Matchers.hasItems("1","2"));
+                .body("fileId", Matchers.hasItems(singleSheetExcelResponse.getFileId(), multiSheetExcelResponse.getFileId()));
     }
 
 
@@ -159,15 +165,17 @@ public class ReportingSystemApplicationTests {
 
     @Test
     public void testBatchExcelGeneration() {
+        ObjectMapper objectMapper = new ObjectMapper();
         BatchExcelRequest batchExcelRequest = new BatchExcelRequest();
         List<ExcelRequest> excelRequests = new ArrayList<>();
         excelRequests.add(singleSheetExcelRequest);
         excelRequests.add(multiSheetExcelRequest);
         batchExcelRequest.setRequests(excelRequests);
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel/batch", batchExcelRequest, List.class);
-        assertTrue(new File("1.xlsx").length() != 0);
-        assertTrue(new File("2.xlsx").length() != 0);
+        JsonNode jsonNode = restTemplate.postForObject(REST_SERVICE_URI+"/excel/batch", batchExcelRequest, JsonNode.class);
+        List<ExcelResponse> responses = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+        assertTrue(new File(responses.get(0).getFileId()+".xlsx").length() != 0);
+        assertTrue(new File(responses.get(1).getFileId()+".xlsx").length() != 0);
     }
 
 
@@ -186,16 +194,16 @@ public class ReportingSystemApplicationTests {
     @Test
     public void testBatchFileDownload() {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
-        restTemplate.postForObject(REST_SERVICE_URI+"/excel", multiSheetExcelRequest, ExcelResponse.class);
-        when().get(REST_SERVICE_URI+"/excel/content/batch?fileId=1&fileId=2").peek().
+        ExcelResponse singleSheetExcelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel", singleSheetExcelRequest, ExcelResponse.class);
+        ExcelResponse multiSheetExcelResponse = restTemplate.postForObject(REST_SERVICE_URI+"/excel/auto", multiSheetExcelRequest, ExcelResponse.class);
+        when().get(REST_SERVICE_URI+"/excel/content/batch?fileId="+singleSheetExcelResponse.getFileId()+"&fileId="+multiSheetExcelResponse.getFileId()).peek().
                 then().assertThat()
                 .statusCode(200);
     }
 
     @Test
     public void testBatchFileDownloadWithInvalidId() {
-        when().get(REST_SERVICE_URI+"/excel/content/batch?fileId=1&fileId=2").peek().
+        when().get(REST_SERVICE_URI+"/excel/content/batch?fileId=1&fileId=123abc").peek().
                 then().assertThat()
                 .statusCode(400);
     }
