@@ -47,7 +47,7 @@ public class ExcelGenerationController {
         try {
             excelFile = excelService.saveRequest(request);
         } catch (IOException e) {
-            throw new ExcelUploadException("file save failed");
+            throw new ExcelTransferException("file save failed");
         }
         ExcelResponse response = new ExcelResponse();
         response.setFileId(excelFile.getId());
@@ -66,7 +66,7 @@ public class ExcelGenerationController {
         try {
             excelFile = excelService.saveMultiSheetRequest(request);
         } catch (IOException e) {
-            throw new ExcelUploadException("file save failed");
+            throw new ExcelTransferException("file save failed");
         }
         ExcelResponse response = new ExcelResponse();
         response.setFileId(excelFile.getId());
@@ -102,9 +102,9 @@ public class ExcelGenerationController {
                 response.setDownloadLink(excelFile.getDownloadLink());
                 responses.add(response);
             } catch (IOException ioe) {
-                ExcelUploadException eue = new ExcelUploadException("file save failed");
-                responses.add(excelUploadExceptionHandler(eue).getBody());
-                log.error(eue.getErrorMessage(), eue);
+                ExcelTransferException ete = new ExcelTransferException("file save failed");
+                responses.add(excelTransferExceptionHandler(ete).getBody());
+                log.error(ete.getErrorMessage(), ete);
                 ioFail = true;
             } catch (ExcelFormatException efe) {
                 responses.add(excelFormatExceptionHandler(efe).getBody());
@@ -172,16 +172,16 @@ public class ExcelGenerationController {
                     zos.write(IOUtils.toByteArray(fis));
                 } catch (IOException e) {
                     response.setStatus(500);
-                    ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
-                    log.error(enfe.getErrorMessage(), enfe);
+                    ExcelTransferException ete = new ExcelTransferException("file download failed");
+                    log.error(ete.getErrorMessage(), ete);
                     continue;
                 }
                 zos.closeEntry();
             }
         } catch (IOException e) {
             response.setStatus(500);
-            ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
-            log.error(enfe.getErrorMessage(), enfe);
+            ExcelTransferException ete = new ExcelTransferException("file download failed");
+            log.error(ete.getErrorMessage(), ete);
         }
     }
 
@@ -220,8 +220,8 @@ public class ExcelGenerationController {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(ExcelUploadException.class)
-    public ResponseEntity<ErrorResponse> excelUploadExceptionHandler(ExcelUploadException ex) {
+    @ExceptionHandler(ExcelTransferException.class)
+    public ResponseEntity<ErrorResponse> excelTransferExceptionHandler(ExcelTransferException ex) {
         ErrorResponse error = new ErrorResponse();
         error.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
         String message = ex.getErrorMessage();
