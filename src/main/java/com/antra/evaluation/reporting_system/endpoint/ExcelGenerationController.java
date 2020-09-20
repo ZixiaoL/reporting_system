@@ -162,6 +162,7 @@ public class ExcelGenerationController {
             for(String id : fileId) {
                 InputStream fis = excelService.getExcelBodyById(id);
                 if(fis == null) {
+                    response.setStatus(400);
                     ExcelNotFoundException enfe = new ExcelNotFoundException("file not exists");
                     log.error(enfe.getErrorMessage(), enfe);
                     continue;
@@ -171,6 +172,7 @@ public class ExcelGenerationController {
                 try {
                     zos.write(IOUtils.toByteArray(fis));
                 } catch (IOException e) {
+                    response.setStatus(500);
                     ExcelTransferException ete = new ExcelTransferException("file download failed");
                     log.error(ete.getErrorMessage(), ete);
                     continue;
@@ -178,6 +180,7 @@ public class ExcelGenerationController {
                 zos.closeEntry();
             }
         } catch (IOException e) {
+            response.setStatus(500);
             ExcelTransferException ete = new ExcelTransferException("file download failed");
             log.error(ete.getErrorMessage(), ete);
         }

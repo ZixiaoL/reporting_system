@@ -120,7 +120,7 @@ public class RequestDataConverter {
                             row.add(DateUtils.parseDate(originData.get(i).get(j), PARSE_PATTERNS));
                             System.out.println(DateUtils.parseDate(originData.get(i).get(j), PARSE_PATTERNS));
                         } catch (ParseException e) {
-                            throw new ExcelFormatException("datas in one column should be of the same type");
+                            throw new ExcelFormatException("data in one column should be of the same type");
                         }
                         break;
                     default:
