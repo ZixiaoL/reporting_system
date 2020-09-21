@@ -3,7 +3,10 @@ package com.antra.evaluation.reporting_system.service;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelData;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataHeader;
 import com.antra.evaluation.reporting_system.pojo.report.ExcelDataSheet;
+import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFDataFormat;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -11,8 +14,11 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Data Structure
@@ -45,6 +51,14 @@ public class ExcelGenerationServiceImpl implements ExcelGenerationService {
         CellStyle style = workbook.createCellStyle();
         style.setWrapText(true);
 
+        XSSFCellStyle xssfCellDoubleStyle = workbook.createCellStyle();
+        xssfCellDoubleStyle.setDataFormat(0x2);
+        xssfCellDoubleStyle.setAlignment(HorizontalAlignment.LEFT);
+
+        XSSFCellStyle xssfCellDateStyle = workbook.createCellStyle();
+        xssfCellDateStyle.setDataFormat(0xe);
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MM/dd/yyyy");
+
 
         for (ExcelDataSheet sheetData : data.getSheets()) {
             Sheet sheet = workbook.createSheet(sheetData.getTitle());
@@ -68,19 +82,21 @@ public class ExcelGenerationServiceImpl implements ExcelGenerationService {
                     switch (headersData.get(j).getType()) {
                         case STRING:
                             cell.setCellValue(String.valueOf(eachRow.get(j)));
+                            cell.setCellStyle(style);
                             break;
                         case NUMBER:
                             cell.setCellValue((Double)eachRow.get(j));
+                            cell.setCellStyle(xssfCellDoubleStyle);
                             break;
                         case DATE:
-                            cell.setCellValue((Date)eachRow.get(j));
+                            cell.setCellValue(simpleDateFormat.format((Date)eachRow.get(j)));
+                            cell.setCellStyle(xssfCellDateStyle);
                             break;
                         default:
                             cell.setCellValue(String.valueOf(eachRow.get(j)));
+                            cell.setCellStyle(style);
                             break;
                     }
-                    cell.setCellValue(String.valueOf(eachRow.get(j)));
-                    cell.setCellStyle(style);
                 }
             }
             for (int i = 0; i < headersData.size(); i++) {
